@@ -20,7 +20,8 @@
     "watch": "node esbuild.mjs --watch",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository"
+    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository",
+    "test:integration": "npm run build && test/integration/run.sh ${TMPDIR:-/tmp}/vault2fa-it"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.5",
@@ -37,5 +38,149 @@
     "esbuild": "0.24.0",
     "typescript": "5.6.3",
     "vitest": "2.1.8"
+  },
+  "icon": "media/icon.png",
+  "keywords": [
+    "2fa",
+    "totp",
+    "authenticator",
+    "otp",
+    "mfa",
+    "vault"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vault2fa",
+          "title": "Vault 2FA",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "vault2fa": [
+        {
+          "type": "webview",
+          "id": "vault2fa.accounts",
+          "name": "Accounts"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "vault2fa.open",
+        "title": "Open",
+        "category": "Vault 2FA",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "vault2fa.unlock",
+        "title": "Unlock Vault",
+        "category": "Vault 2FA",
+        "icon": "$(unlock)"
+      },
+      {
+        "command": "vault2fa.lock",
+        "title": "Lock Vault",
+        "category": "Vault 2FA",
+        "icon": "$(lock)"
+      },
+      {
+        "command": "vault2fa.copyCode",
+        "title": "Copy Code\u2026",
+        "category": "Vault 2FA",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "vault2fa.insertCode",
+        "title": "Insert Code into Editor\u2026",
+        "category": "Vault 2FA"
+      },
+      {
+        "command": "vault2fa.addFromUri",
+        "title": "Add Account from otpauth:// Link\u2026",
+        "category": "Vault 2FA"
+      },
+      {
+        "command": "vault2fa.import",
+        "title": "Import Backup File\u2026",
+        "category": "Vault 2FA"
+      },
+      {
+        "command": "vault2fa.exportBackup",
+        "title": "Export Encrypted Backup\u2026",
+        "category": "Vault 2FA"
+      },
+      {
+        "command": "vault2fa.chooseBackupFolder",
+        "title": "Choose Auto-Backup Folder\u2026",
+        "category": "Vault 2FA"
+      },
+      {
+        "command": "vault2fa.changePassword",
+        "title": "Change Master Password\u2026",
+        "category": "Vault 2FA"
+      },
+      {
+        "command": "vault2fa.syncClock",
+        "title": "Sync Clock with Server",
+        "category": "Vault 2FA"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "vault2fa.lock",
+          "when": "view == vault2fa.accounts",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "vault2fa.copyCode",
+        "key": "ctrl+alt+2",
+        "mac": "cmd+alt+2"
+      }
+    ],
+    "configuration": {
+      "title": "Vault 2FA",
+      "properties": {
+        "vault2fa.autoLockMinutes": {
+          "type": "number",
+          "default": 15,
+          "minimum": 0,
+          "description": "Lock the vault after this many minutes without interaction. 0 = never (not recommended)."
+        },
+        "vault2fa.clipboardClearSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "description": "Clear a copied code from the clipboard after this many seconds (only if it is still there). 0 = never."
+        },
+        "vault2fa.rememberOnThisMachine": {
+          "type": "boolean",
+          "default": false,
+          "description": "Store the vault key in the OS keychain so the vault opens without a password after restart."
+        },
+        "vault2fa.autoBackupFolder": {
+          "type": "string",
+          "default": "",
+          "description": "Folder that receives an encrypted backup after every change (opens with your master password). Use a Dropbox/Drive/OneDrive folder for cloud sync."
+        },
+        "vault2fa.backupKeep": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "description": "How many auto-backup files to keep."
+        },
+        "vault2fa.hideCodes": {
+          "type": "boolean",
+          "default": false,
+          "description": "Blur codes until you hover over them."
+        }
+      }
+    }
   }
 }
