@@ -118,3 +118,15 @@ describe("VaultStore", () => {
     JSON.parse(readFileSync(file, "utf8"));
   });
 });
+
+describe("sealedBackup", () => {
+  it("opens with the vault password via importAny", async () => {
+    const { importAny } = await import("../src/core/importers");
+    const file = join(mkdtempSync(join(tmpdir(), "v2fa-")), "vault.json");
+    const v = new VaultStore(file, P);
+    await v.create("pw");
+    await v.add(newEntry({ issuer: "Q", secret: "JBSWY3DPEHPK3PXP" }));
+    const r = await importAny(v.sealedBackup(), "pw");
+    expect(r.entries[0].issuer).toBe("Q");
+  });
+});

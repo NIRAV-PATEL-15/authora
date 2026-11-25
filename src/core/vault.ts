@@ -130,6 +130,11 @@ export class VaultStore {
     renameSync(tmp, this.filePath);
   }
 
+  /** Entries sealed with the vault's own key: a backup that opens with the vault password. */
+  sealedBackup(): string {
+    return JSON.stringify(sealWithKey({ entries: this.unlocked().entries }, this.key!, this.kdf!), null, 2);
+  }
+
   async add(...entries: Entry[]): Promise<void> {
     this.unlocked().entries.push(...entries);
     await this.save();
