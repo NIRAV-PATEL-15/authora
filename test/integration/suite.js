@@ -4,7 +4,7 @@ const assert = require("assert");
 
 exports.run = async function () {
   const log = (m) => console.log("[it] " + m);
-  const ext = vscode.extensions.getExtension("local.authora");
+  const ext = vscode.extensions.getExtension("NiravPatel15.authora");
   assert.ok(ext, "extension found");
   const api = await ext.activate();
   const s = api.session;

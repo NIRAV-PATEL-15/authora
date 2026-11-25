@@ -73,6 +73,6 @@ code --install-extension authora-0.1.0.vsix
 Press F5 in this folder to launch an Extension Development Host.
 
 ## Where data lives
-`~/.config/Code/User/globalStorage/local.authora/vault.json` (Linux) holds the encrypted envelope
+`~/.config/Code/User/globalStorage/NiravPatel15.authora/vault.json` (Linux) holds the encrypted envelope
 `{v, kdf:{argon2id, salt, m, t, p}, iv, ct}`. Without the password it is useless.
 There is **no password recovery**, so keep a backup.
