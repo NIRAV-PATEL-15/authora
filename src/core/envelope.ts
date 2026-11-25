@@ -70,10 +70,32 @@ export async function seal(data: unknown, password: string, cost: KdfCost = DEFA
 }
 
 export async function open(env: Envelope, password: string): Promise<unknown> {
+  if (!isEnvelope(env)) throw new Error("Unsupported or unsafe encryption parameters");
   return openWithKey(env, await deriveKey(password, env.kdf));
 }
 
+/** Bounds for KDF parameters we accept from files (a hostile backup must not freeze VS Code). */
+export const KDF_LIMITS = { mMin: 1024, mMax: 262_144, tMin: 1, tMax: 10, pMin: 1, pMax: 4 } as const;
+
+const intIn = (n: unknown, lo: number, hi: number) => Number.isInteger(n) && (n as number) >= lo && (n as number) <= hi;
+const b64Len = (s: unknown) => (typeof s === "string" && /^[A-Za-z0-9+/]+={0,2}$/.test(s) ? Buffer.from(s, "base64").length : -1);
+
+/** Structural check plus sane bounds on everything that drives work or allocation. */
 export function isEnvelope(x: unknown): x is Envelope {
   const e = x as Envelope;
-  return !!e && e.v === 1 && !!e.kdf && e.kdf.alg === "argon2id" && typeof e.iv === "string" && typeof e.ct === "string";
+  if (!e || typeof e !== "object" || e.v !== 1 || !e.kdf || typeof e.kdf !== "object") return false;
+  const k = e.kdf;
+  return k.alg === "argon2id"
+    && intIn(k.m, KDF_LIMITS.mMin, KDF_LIMITS.mMax)
+    && intIn(k.t, KDF_LIMITS.tMin, KDF_LIMITS.tMax)
+    && intIn(k.p, KDF_LIMITS.pMin, KDF_LIMITS.pMax)
+    && b64Len(k.salt) >= 16
+    && b64Len(e.iv) === 12
+    && b64Len(e.ct) >= 16;
+}
+
+/** True when `x` looks like an envelope (so we can give a specific error instead of "unknown format"). */
+export function looksLikeEnvelope(x: unknown): boolean {
+  const e = x as Envelope;
+  return !!e && typeof e === "object" && e.v === 1 && !!e.kdf && typeof e.iv === "string";
 }

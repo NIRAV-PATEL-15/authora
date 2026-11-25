@@ -159,6 +159,10 @@ function busy(btn: HTMLButtonElement, form: string) {
   btn.classList.add("busy");
   setError(form, "");
 }
+const clampInt = (v: string, lo: number, hi: number, dflt: number) => {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n >= lo && n <= hi ? n : dflt;
+};
 const val = (root: HTMLElement, name: string) => (root.querySelector(`[name="${name}"]`) as HTMLInputElement).value;
 
 // ---------- screens ----------
@@ -452,7 +456,8 @@ function manualForm() {
     const entry: ManualEntry = {
       issuer: val(form, "issuer"), account: val(form, "account"), secret: val(form, "secret"),
       type: val(form, "type") as ManualEntry["type"], algorithm: val(form, "algorithm") as ManualEntry["algorithm"],
-      digits: Number(val(form, "digits")), period: Number(val(form, "period")), counter: Number(val(form, "counter")),
+      digits: clampInt(val(form, "digits"), 1, 10, 6), period: clampInt(val(form, "period"), 1, 86_400, 30),
+      counter: clampInt(val(form, "counter"), 0, Number.MAX_SAFE_INTEGER, 0),
     };
     if (!entry.secret.trim()) return setError("addManual", "Secret is required");
     if (!entry.issuer.trim() && !entry.account.trim()) return setError("addManual", "Give it a name (issuer or account)");

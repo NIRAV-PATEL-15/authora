@@ -60,7 +60,10 @@ No account, no cloud, no telemetry.
 ## Security notes
 - Network: the only request is the optional **Sync clock** (HEAD to google.com, to read the time).
 - The webview UI never receives your secrets. Codes are generated in the extension host.
-- If you enable "Remember on this machine", anyone with access to your OS account can open the vault.
+- "Remember on this machine" stores the vault key in the OS keychain so VS Code opens the vault at startup.
+  After you lock (manually or by auto-lock), the password is required again, even after a reload.
+- Security settings apply at user level only. A repository's `.vscode/settings.json` cannot change them.
+- Several VS Code windows can safely use the vault at the same time.
 
 ## Disclaimer
 Provided as is, without warranty (MIT). Before removing your secrets from another authenticator,

@@ -97,6 +97,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   reg("authora.chooseBackupFolder", async () => { if (await ensureUnlocked()) await A.chooseBackupFolder(s); });
   reg("authora.syncClock", async () => {
     const off = await A.syncClock(s);
+    if (off === undefined) return;
     vscode.window.showInformationMessage(`Authora clock offset: ${off}s`);
   });
   reg("authora.changePassword", async () => {

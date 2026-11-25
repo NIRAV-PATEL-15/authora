@@ -2,7 +2,7 @@ import * as CryptoJS from "crypto-js";
 import { Entry, OtpType, OtpAlgorithm, newEntry, validateSecret } from "./otp";
 import { parseOtpauth, splitLabel } from "./uri";
 import { parseMigration } from "./migration";
-import { isEnvelope, open } from "./envelope";
+import { isEnvelope, looksLikeEnvelope, open } from "./envelope";
 import type { VaultData } from "./vault";
 
 export interface ImportResult {
@@ -19,7 +19,8 @@ export class WrongBackupPasswordError extends Error {
 
 function tryEntry(p: Partial<Entry>): Entry | null {
   try {
-    const e = newEntry(p);
+    // Never trust ids from a file: a re-imported backup must not collide with live entries.
+    const e = newEntry({ ...p, id: undefined });
     validateSecret(e);
     return e;
   } catch {
@@ -157,6 +158,9 @@ export async function importAny(text: string, password?: string): Promise<Import
   let json: unknown;
   try { json = JSON.parse(trimmed); } catch { return fromLines(trimmed); }
 
+  if (looksLikeEnvelope(json) && !isEnvelope(json)) {
+    throw new Error("This backup has invalid or unsafe encryption settings and was not opened");
+  }
   if (isEnvelope(json)) {
     if (!password) return { entries: [], failed: 0, needsPassword: true, format: "authora" };
     let data: VaultData;

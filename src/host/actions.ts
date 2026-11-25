@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { writeFileSync } from "node:fs";
+import { chmodSync, writeFileSync } from "node:fs";
 import * as QRCode from "qrcode";
 import { Session } from "./session";
 import { importAny, dedupe, ImportResult } from "../core/importers";
@@ -34,6 +34,12 @@ export async function pickImportFile(): Promise<string | undefined> {
   return Buffer.from(await vscode.workspace.fs.readFile(uris[0])).toString("utf8");
 }
 
+/** Write a sensitive file and force owner-only permissions even when overwriting an existing file. */
+function writePrivate(path: string, content: string) {
+  writeFileSync(path, content, { mode: 0o600 });
+  try { chmodSync(path, 0o600); } catch { /* not supported on this filesystem */ }
+}
+
 function stamp() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -44,7 +50,7 @@ export async function exportEncrypted(s: Session, password: string): Promise<boo
     filters: { "Authora backup": ["authora"] },
   });
   if (!uri) return false;
-  writeFileSync(uri.fsPath, await makeBackup(s.store.entries, password), { mode: 0o600 });
+  writePrivate(uri.fsPath, await makeBackup(s.store.entries, password));
   await s.store.setLastBackup(Date.now());
   s.fire();
   return true;
@@ -62,7 +68,7 @@ export async function exportPlain(s: Session): Promise<boolean> {
     filters: { "Text": ["txt"] },
   });
   if (!uri) return false;
-  writeFileSync(uri.fsPath, s.store.entries.map(toOtpauth).join("\n") + "\n", { mode: 0o600 });
+  writePrivate(uri.fsPath, s.store.entries.map(toOtpauth).join("\n") + "\n");
   return true;
 }
 
@@ -75,8 +81,17 @@ export async function chooseBackupFolder(s: Session): Promise<string | undefined
   return file;
 }
 
-export async function syncClock(s: Session): Promise<number> {
+/** Offsets beyond this need explicit confirmation (a TLS-intercepting proxy could otherwise skew codes). */
+export const MAX_SILENT_OFFSET = 300;
+
+export async function syncClock(s: Session): Promise<number | undefined> {
   const off = await fetchOffset();
+  if (Math.abs(off) > MAX_SILENT_OFFSET) {
+    const ok = await vscode.window.showWarningMessage(
+      `The server's clock differs from yours by ${off} seconds. Usually this means your system clock is wrong; fixing the system clock is better. Apply this offset to Authora anyway?`,
+      { modal: true }, "Apply offset");
+    if (ok !== "Apply offset") return undefined;
+  }
   await s.setOffset(off);
   return off;
 }

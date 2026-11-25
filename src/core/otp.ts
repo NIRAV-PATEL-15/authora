@@ -29,18 +29,19 @@ export function isCounterBased(type: OtpType): boolean {
 export function newEntry(p: Partial<Entry>): Entry {
   const type = p.type && OTP_TYPES.includes(p.type) ? p.type : "totp";
   const algorithm = p.algorithm && ALGORITHMS.includes(p.algorithm) ? p.algorithm : "SHA1";
-  const digits = p.digits && p.digits >= 1 && p.digits <= 10 ? Math.floor(p.digits) : 6;
-  const period = p.period && p.period > 0 ? Math.floor(p.period) : 30;
+  const digits = Number.isFinite(p.digits) && p.digits! >= 1 && p.digits! <= 10 ? Math.floor(p.digits!) : 6;
+  const period = Number.isFinite(p.period) && p.period! >= 1 && p.period! <= 86_400 ? Math.floor(p.period!) : 30;
+  const text = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
   return {
-    id: p.id || randomUUID(),
+    id: typeof p.id === "string" && p.id ? p.id : randomUUID(),
     type,
-    issuer: (p.issuer || "").trim(),
-    account: (p.account || "").trim(),
-    secret: (p.secret || "").replace(/\s/g, ""),
+    issuer: text(p.issuer, 128),
+    account: text(p.account, 256),
+    secret: String(p.secret ?? "").replace(/\s/g, "").slice(0, 1024),
     period,
     digits,
     algorithm,
-    counter: p.counter && p.counter > 0 ? Math.floor(p.counter) : 0,
+    counter: Number.isSafeInteger(Math.floor(p.counter ?? 0)) && p.counter! > 0 ? Math.floor(p.counter!) : 0,
     pinned: !!p.pinned,
   };
 }
@@ -68,6 +69,8 @@ export function remainingSeconds(period: number, nowMs: number, offsetSec: numbe
 }
 
 export function generateCode(e: Entry, nowMs: number, offsetSec: number): string {
+  if (!Number.isFinite(offsetSec)) offsetSec = 0; // never let a corrupt stored offset break every code
+  offsetSec = Math.round(offsetSec);
   const key = keyBytes(e);
   let counter: number;
   if (isCounterBased(e.type)) {

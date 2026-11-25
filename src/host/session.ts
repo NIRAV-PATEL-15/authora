@@ -9,6 +9,8 @@ import type { EntryView, ViewState } from "../shared/protocol";
 const KEY_SECRET = "authora.rememberedKey";
 const OFFSET_KEY = "authora.clockOffset";
 const IGNORED_KEY = "authora.ignoredInsights";
+/** Set by an explicit or automatic lock: the remembered key must not reopen the vault until a password unlock. */
+const REQUIRE_PW_KEY = "authora.requirePassword";
 
 export function cfg() {
   const c = vscode.workspace.getConfiguration("authora");
@@ -34,16 +36,25 @@ export class Session implements vscode.Disposable {
   constructor(private readonly ctx: vscode.ExtensionContext) {
     this.store = new VaultStore(join(ctx.globalStorageUri.fsPath, "vault.json"));
     this.timer = setInterval(() => this.checkAutoLock(), 10_000);
+    // Another VS Code window may change the vault file; pick up its changes (or lock if it was re-keyed).
+    const w = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(ctx.globalStorageUri, "vault.json"));
+    const onExternal = () => { if (this.store.isUnlocked) { this.store.refresh(); this.fire(); } };
+    this.watcher = vscode.Disposable.from(w, w.onDidChange(onExternal), w.onDidCreate(onExternal));
   }
+  private readonly watcher: vscode.Disposable;
 
   dispose() {
     clearInterval(this.timer);
+    this.watcher.dispose();
     if (this.clipTimer) clearTimeout(this.clipTimer);
     this.store.lock();
     this.changed.dispose();
   }
 
-  get offset(): number { return this.ctx.globalState.get<number>(OFFSET_KEY, 0); }
+  get offset(): number {
+    const v = this.ctx.globalState.get<number>(OFFSET_KEY, 0);
+    return Number.isFinite(v) ? v : 0;
+  }
   async setOffset(v: number) { await this.ctx.globalState.update(OFFSET_KEY, v); this.fire(); }
 
   touch() { this.lastActivity = Date.now(); }
@@ -51,12 +62,13 @@ export class Session implements vscode.Disposable {
 
   private checkAutoLock() {
     const mins = cfg().autoLockMinutes;
-    if (this.store.isUnlocked && mins > 0 && Date.now() - this.lastActivity > mins * 60_000) this.lock();
+    if (this.store.isUnlocked && mins > 0 && Date.now() - this.lastActivity > mins * 60_000) void this.lock();
   }
 
   /** Try the OS-keychain key at startup when the user opted in. */
   async tryRememberedUnlock() {
     if (!cfg().rememberOnThisMachine || !this.store.exists()) return;
+    if (this.ctx.globalState.get<boolean>(REQUIRE_PW_KEY, false)) return;
     const b64 = await this.ctx.secrets.get(KEY_SECRET);
     if (!b64) return;
     try {
@@ -78,6 +90,7 @@ export class Session implements vscode.Disposable {
 
   async create(password: string) {
     await this.store.create(password);
+    await this.ctx.globalState.update(REQUIRE_PW_KEY, false);
     this.touch();
     await this.syncRememberedKey();
     this.fire();
@@ -85,21 +98,29 @@ export class Session implements vscode.Disposable {
 
   async unlock(password: string) {
     await this.store.unlock(password);
+    await this.ctx.globalState.update(REQUIRE_PW_KEY, false);
     this.touch();
     await this.syncRememberedKey();
     this.fire();
   }
 
-  lock() {
+  /** Lock now. Until the next password unlock, the remembered key (if any) will not auto-unlock. */
+  async lock() {
     if (!this.store.isUnlocked) return;
     this.store.lock();
     this.fire();
+    await this.ctx.globalState.update(REQUIRE_PW_KEY, true);
   }
 
   /** Run a mutation, then auto-backup and notify the UI. */
   async mutate(fn: () => Promise<unknown>) {
     this.touch();
-    await fn();
+    try {
+      await fn();
+    } catch (e) {
+      this.fire(); // e.g. VaultChangedError locked us: show the lock screen
+      throw e;
+    }
     await this.autoBackup();
     this.fire();
   }

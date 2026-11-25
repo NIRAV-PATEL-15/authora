@@ -34,10 +34,10 @@
     "@types/crypto-js": "4.2.2",
     "@types/node": "20.17.6",
     "@types/vscode": "1.85.0",
-    "@vscode/vsce": "3.2.1",
-    "esbuild": "0.24.0",
+    "@vscode/vsce": "3.9.2",
+    "esbuild": "0.28.2",
     "typescript": "5.6.3",
-    "vitest": "2.1.8"
+    "vitest": "4.1.12"
   },
   "icon": "media/icon.png",
   "keywords": [
@@ -155,34 +155,40 @@
           "type": "number",
           "default": 15,
           "minimum": 0,
-          "description": "Lock the vault after this many minutes without interaction. 0 = never (not recommended)."
+          "description": "Lock the vault after this many minutes without interaction. 0 = never (not recommended).",
+          "scope": "application"
         },
         "authora.clipboardClearSeconds": {
           "type": "number",
           "default": 30,
           "minimum": 0,
-          "description": "Clear a copied code from the clipboard after this many seconds (only if it is still there). 0 = never."
+          "description": "Clear a copied code from the clipboard after this many seconds (only if it is still there). 0 = never.",
+          "scope": "application"
         },
         "authora.rememberOnThisMachine": {
           "type": "boolean",
           "default": false,
-          "description": "Store the vault key in the OS keychain so the vault opens without a password after restart."
+          "description": "Store the vault key in the OS keychain so the vault opens without a password after restart.",
+          "scope": "application"
         },
         "authora.autoBackupFolder": {
           "type": "string",
           "default": "",
-          "description": "Folder that receives an encrypted backup after every change (opens with your master password). Use a Dropbox/Drive/OneDrive folder for cloud sync."
+          "description": "Folder that receives an encrypted backup after every change (opens with your master password). Use a Dropbox/Drive/OneDrive folder for cloud sync.",
+          "scope": "application"
         },
         "authora.backupKeep": {
           "type": "number",
           "default": 10,
           "minimum": 1,
-          "description": "How many auto-backup files to keep."
+          "description": "How many auto-backup files to keep.",
+          "scope": "application"
         },
         "authora.hideCodes": {
           "type": "boolean",
           "default": false,
-          "description": "Blur codes until you hover over them."
+          "description": "Blur codes until you hover over them.",
+          "scope": "application"
         }
       }
     }
@@ -200,5 +206,11 @@
   "bugs": {
     "url": "https://github.com/NIRAV-PATEL-15/authora/issues"
   },
-  "homepage": "https://github.com/NIRAV-PATEL-15/authora#readme"
+  "homepage": "https://github.com/NIRAV-PATEL-15/authora#readme",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  }
 }

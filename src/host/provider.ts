@@ -7,6 +7,7 @@ import { WrongPasswordError } from "../core/envelope";
 import { WrongBackupPasswordError } from "../core/importers";
 import { newEntry, validateSecret } from "../core/otp";
 import * as A from "./actions";
+import { isValidViewMsg } from "../shared/validate";
 
 export class VaultViewProvider implements vscode.WebviewViewProvider {
   static readonly viewId = "authora.accounts";
@@ -22,7 +23,7 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
     const dist = vscode.Uri.joinPath(this.ctx.extensionUri, "dist");
     view.webview.options = { enableScripts: true, localResourceRoots: [media, dist] };
     view.webview.html = this.html(view.webview);
-    view.webview.onDidReceiveMessage((m: ViewMsg) => this.handle(m));
+    view.webview.onDidReceiveMessage((m: unknown) => this.handle(m));
     view.onDidChangeVisibility(() => view.visible && this.pushState());
   }
 
@@ -35,12 +36,14 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
     return e;
   }
 
-  private async handle(m: ViewMsg) {
+  private async handle(raw: unknown) {
+    if (!isValidViewMsg(raw)) return;
+    const m: ViewMsg = raw;
     if (m.type !== "ready" && m.type !== "refresh") this.s.touch();
     const form = m.type;
     try {
       switch (m.type) {
-        case "ready": this.pushState(); break;
+        case "ready": this.s.store.refresh(); this.pushState(); break;
         case "activity": break;
         case "create":
           if (m.password.length < 8) throw new Error("Use at least 8 characters");
@@ -52,9 +55,10 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
           }
           await this.s.unlock(m.password);
           break;
-        case "lock": this.s.lock(); break;
+        case "lock": await this.s.lock(); break;
         case "refresh":
-          if (this.s.store.isUnlocked) this.post({ type: "codes", codes: this.s.codes() });
+          if (this.s.store.isUnlocked && this.s.store.refresh()) this.post({ type: "codes", codes: this.s.codes() });
+          else this.pushState();
           break;
         case "copy": {
           await this.s.copyCode(this.find(m.id));
@@ -63,8 +67,7 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
           break;
         }
         case "next": {
-          const e = this.find(m.id);
-          await this.s.mutate(() => this.s.store.update(e.id, { counter: e.counter + 1 }));
+          await this.s.mutate(() => this.s.store.incrementCounter(m.id));
           break;
         }
         case "addManual": {
@@ -140,6 +143,7 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
           break;
         case "syncClock": {
           const off = await A.syncClock(this.s);
+          if (off === undefined) break;
           this.post({ type: "toast", text: `Clock synced (offset ${off >= 0 ? "+" : ""}${off}s)`, kind: "ok" });
           break;
         }
