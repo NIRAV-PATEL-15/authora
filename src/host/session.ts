@@ -6,12 +6,12 @@ import { advise } from "../core/advisor";
 import { writeBackupFile } from "../core/backup";
 import type { EntryView, ViewState } from "../shared/protocol";
 
-const KEY_SECRET = "vault2fa.rememberedKey";
-const OFFSET_KEY = "vault2fa.clockOffset";
-const IGNORED_KEY = "vault2fa.ignoredInsights";
+const KEY_SECRET = "authora.rememberedKey";
+const OFFSET_KEY = "authora.clockOffset";
+const IGNORED_KEY = "authora.ignoredInsights";
 
 export function cfg() {
-  const c = vscode.workspace.getConfiguration("vault2fa");
+  const c = vscode.workspace.getConfiguration("authora");
   return {
     autoLockMinutes: c.get<number>("autoLockMinutes", 15),
     clipboardClearSeconds: c.get<number>("clipboardClearSeconds", 30),
@@ -115,7 +115,7 @@ export class Session implements vscode.Disposable {
       await this.store.setLastBackup(Date.now());
       return file;
     } catch (e) {
-      vscode.window.showWarningMessage(`Vault 2FA auto-backup failed: ${(e as Error).message}`);
+      vscode.window.showWarningMessage(`Authora auto-backup failed: ${(e as Error).message}`);
       if (force) throw e;
     }
   }

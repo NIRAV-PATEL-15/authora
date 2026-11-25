@@ -1,7 +1,7 @@
 {
-  "name": "vault-2fa",
-  "displayName": "Vault 2FA",
-  "description": "Password-protected two-factor authenticator (TOTP/HOTP/Steam/Battle.net) inside VS Code.",
+  "name": "authora",
+  "displayName": "Authora — 2FA Authenticator",
+  "description": "Password-protected two-factor authenticator (TOTP/HOTP/Steam) in your VS Code sidebar. Encrypted vault, no cloud, no telemetry.",
   "version": "0.1.0",
   "publisher": "local",
   "license": "MIT",
@@ -20,8 +20,8 @@
     "watch": "node esbuild.mjs --watch",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository",
-    "test:integration": "npm run build && test/integration/run.sh ${TMPDIR:-/tmp}/vault2fa-it"
+    "package": "npm run build && vsce package --no-dependencies",
+    "test:integration": "npm run build && test/integration/run.sh ${TMPDIR:-/tmp}/authora-it"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.5",
@@ -46,141 +46,159 @@
     "authenticator",
     "otp",
     "mfa",
-    "vault"
+    "two-factor",
+    "google authenticator",
+    "vault",
+    "hotp",
+    "steam"
   ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "vault2fa",
-          "title": "Vault 2FA",
+          "id": "authora",
+          "title": "Authora",
           "icon": "media/activity.svg"
         }
       ]
     },
     "views": {
-      "vault2fa": [
+      "authora": [
         {
           "type": "webview",
-          "id": "vault2fa.accounts",
+          "id": "authora.accounts",
           "name": "Accounts"
         }
       ]
     },
     "commands": [
       {
-        "command": "vault2fa.open",
+        "command": "authora.open",
         "title": "Open",
-        "category": "Vault 2FA",
+        "category": "Authora",
         "icon": "$(shield)"
       },
       {
-        "command": "vault2fa.unlock",
+        "command": "authora.unlock",
         "title": "Unlock Vault",
-        "category": "Vault 2FA",
+        "category": "Authora",
         "icon": "$(unlock)"
       },
       {
-        "command": "vault2fa.lock",
+        "command": "authora.lock",
         "title": "Lock Vault",
-        "category": "Vault 2FA",
+        "category": "Authora",
         "icon": "$(lock)"
       },
       {
-        "command": "vault2fa.copyCode",
-        "title": "Copy Code\u2026",
-        "category": "Vault 2FA",
+        "command": "authora.copyCode",
+        "title": "Copy Code…",
+        "category": "Authora",
         "icon": "$(copy)"
       },
       {
-        "command": "vault2fa.insertCode",
-        "title": "Insert Code into Editor\u2026",
-        "category": "Vault 2FA"
+        "command": "authora.insertCode",
+        "title": "Insert Code into Editor…",
+        "category": "Authora"
       },
       {
-        "command": "vault2fa.addFromUri",
-        "title": "Add Account from otpauth:// Link\u2026",
-        "category": "Vault 2FA"
+        "command": "authora.addFromUri",
+        "title": "Add Account from otpauth:// Link…",
+        "category": "Authora"
       },
       {
-        "command": "vault2fa.import",
-        "title": "Import Backup File\u2026",
-        "category": "Vault 2FA"
+        "command": "authora.import",
+        "title": "Import Backup File…",
+        "category": "Authora"
       },
       {
-        "command": "vault2fa.exportBackup",
-        "title": "Export Encrypted Backup\u2026",
-        "category": "Vault 2FA"
+        "command": "authora.exportBackup",
+        "title": "Export Encrypted Backup…",
+        "category": "Authora"
       },
       {
-        "command": "vault2fa.chooseBackupFolder",
-        "title": "Choose Auto-Backup Folder\u2026",
-        "category": "Vault 2FA"
+        "command": "authora.chooseBackupFolder",
+        "title": "Choose Auto-Backup Folder…",
+        "category": "Authora"
       },
       {
-        "command": "vault2fa.changePassword",
-        "title": "Change Master Password\u2026",
-        "category": "Vault 2FA"
+        "command": "authora.changePassword",
+        "title": "Change Master Password…",
+        "category": "Authora"
       },
       {
-        "command": "vault2fa.syncClock",
+        "command": "authora.syncClock",
         "title": "Sync Clock with Server",
-        "category": "Vault 2FA"
+        "category": "Authora"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "vault2fa.lock",
-          "when": "view == vault2fa.accounts",
+          "command": "authora.lock",
+          "when": "view == authora.accounts",
           "group": "navigation"
         }
       ]
     },
     "keybindings": [
       {
-        "command": "vault2fa.copyCode",
+        "command": "authora.copyCode",
         "key": "ctrl+alt+2",
         "mac": "cmd+alt+2"
       }
     ],
     "configuration": {
-      "title": "Vault 2FA",
+      "title": "Authora",
       "properties": {
-        "vault2fa.autoLockMinutes": {
+        "authora.autoLockMinutes": {
           "type": "number",
           "default": 15,
           "minimum": 0,
           "description": "Lock the vault after this many minutes without interaction. 0 = never (not recommended)."
         },
-        "vault2fa.clipboardClearSeconds": {
+        "authora.clipboardClearSeconds": {
           "type": "number",
           "default": 30,
           "minimum": 0,
           "description": "Clear a copied code from the clipboard after this many seconds (only if it is still there). 0 = never."
         },
-        "vault2fa.rememberOnThisMachine": {
+        "authora.rememberOnThisMachine": {
           "type": "boolean",
           "default": false,
           "description": "Store the vault key in the OS keychain so the vault opens without a password after restart."
         },
-        "vault2fa.autoBackupFolder": {
+        "authora.autoBackupFolder": {
           "type": "string",
           "default": "",
           "description": "Folder that receives an encrypted backup after every change (opens with your master password). Use a Dropbox/Drive/OneDrive folder for cloud sync."
         },
-        "vault2fa.backupKeep": {
+        "authora.backupKeep": {
           "type": "number",
           "default": 10,
           "minimum": 1,
           "description": "How many auto-backup files to keep."
         },
-        "vault2fa.hideCodes": {
+        "authora.hideCodes": {
           "type": "boolean",
           "default": false,
           "description": "Blur codes until you hover over them."
         }
       }
     }
-  }
+  },
+  "preview": true,
+  "pricing": "Free",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NIRAV-PATEL-15/authora.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NIRAV-PATEL-15/authora/issues"
+  },
+  "homepage": "https://github.com/NIRAV-PATEL-15/authora#readme"
 }

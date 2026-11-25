@@ -158,10 +158,10 @@ export async function importAny(text: string, password?: string): Promise<Import
   try { json = JSON.parse(trimmed); } catch { return fromLines(trimmed); }
 
   if (isEnvelope(json)) {
-    if (!password) return { entries: [], failed: 0, needsPassword: true, format: "vault2fa" };
+    if (!password) return { entries: [], failed: 0, needsPassword: true, format: "authora" };
     let data: VaultData;
     try { data = (await open(json, password)) as VaultData; } catch { throw new WrongBackupPasswordError(); }
-    return collect(data.entries || [], "vault2fa");
+    return collect(data.entries || [], "authora");
   }
   if (Array.isArray(json)) return fromAndOtp(json);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

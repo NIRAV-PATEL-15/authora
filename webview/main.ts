@@ -433,7 +433,7 @@ function addSheet(tab: "qr" | "uri" | "manual") {
   }
   const importBtn = h("button", { class: "btn ghost block", onClick: () => send({ type: "importFile" }) }, icon("upload"), "Import backup file…");
   return sheetFrame("Add account", [tabs, body, h("div", { class: "divider" }, "or"), importBtn,
-    h("p", { class: "hint center" }, "Supports Chrome Authenticator, Google Authenticator, andOTP, 2FAS, Aegis and Vault 2FA backups.")]);
+    h("p", { class: "hint center" }, "Supports Chrome Authenticator, Google Authenticator, andOTP, 2FAS, Aegis and Authora backups.")]);
 }
 
 function manualForm() {
@@ -546,7 +546,7 @@ function menuSheet() {
     menuItem("shield", "Security", "Auto-lock, remember, hide codes", () => openSheet({ kind: "security" })),
     menuItem("alert", "Advisor", n ? `${n} suggestion${n > 1 ? "s" : ""}` : "All good", () => openSheet({ kind: "advisor" }), n ? String(n) : undefined),
     menuItem("clock", "Sync clock", `Offset ${state.offset >= 0 ? "+" : ""}${state.offset}s · fixes wrong codes`, () => send({ type: "syncClock" })),
-    h("p", { class: "hint center" }, `${entries().length} account${entries().length === 1 ? "" : "s"} · Vault 2FA · no telemetry`),
+    h("p", { class: "hint center" }, `${entries().length} account${entries().length === 1 ? "" : "s"} · Authora · no telemetry`),
   ]);
 }
 
@@ -614,7 +614,7 @@ function securitySheet() {
       h("span", { class: "muted" }, "Vault always locks when VS Code restarts")), lock),
     toggleRow("Hide codes until hover", "Shoulder-surfing protection", st.hideCodes, (v) => send({ type: "setSetting", key: "hideCodes", value: v })),
     toggleRow("Remember on this machine", "Store the vault key in the OS keychain; opens without password", st.rememberOnThisMachine, (v) => send({ type: "setSetting", key: "rememberOnThisMachine", value: v })),
-    h("p", { class: "hint" }, "Copied codes are cleared from the clipboard automatically (setting: vault2fa.clipboardClearSeconds)."),
+    h("p", { class: "hint" }, "Copied codes are cleared from the clipboard automatically (setting: authora.clipboardClearSeconds)."),
   ], () => openSheet({ kind: "menu" }));
 }
 
@@ -646,7 +646,7 @@ function importPasswordSheet(text: string, format: string) {
     ev.preventDefault();
     busy(btn, "importText");
     send({ type: "importText", text, password: val(form, "ipw") });
-  } }, h("p", { class: "muted" }, `This ${format === "vault2fa" ? "Vault 2FA" : format === "chrome" ? "Chrome Authenticator" : format} backup is encrypted.`),
+  } }, h("p", { class: "muted" }, `This ${format === "authora" ? "Authora" : format === "chrome" ? "Chrome Authenticator" : format} backup is encrypted.`),
     field("Backup password", pwInput("ipw", "", true)), errorBox("importText"), btn);
   return sheetFrame("Encrypted backup", [form]);
 }

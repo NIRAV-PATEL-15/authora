@@ -107,7 +107,7 @@ describe("importAny", () => {
     expect((await importAny(aegis)).entries[0]).toMatchObject({ type: "steam", issuer: "Steam" });
   });
 
-  it("own .vault2fa backup", async () => {
+  it("own .authora backup", async () => {
     const env = await seal({ entries: [newEntry({ issuer: "Z", secret: "JBSWY3DPEHPK3PXP" })] }, "bpw", FAST_KDF_FOR_TESTS);
     expect((await importAny(JSON.stringify(env))).needsPassword).toBe(true);
     expect((await importAny(JSON.stringify(env), "bpw")).entries[0].issuer).toBe("Z");

@@ -9,7 +9,7 @@ import { newEntry, validateSecret } from "../core/otp";
 import * as A from "./actions";
 
 export class VaultViewProvider implements vscode.WebviewViewProvider {
-  static readonly viewId = "vault2fa.accounts";
+  static readonly viewId = "authora.accounts";
   private view?: vscode.WebviewView;
 
   constructor(private readonly ctx: vscode.ExtensionContext, private readonly s: Session) {
@@ -48,7 +48,7 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
           break;
         case "unlock":
           if (m.remember !== cfg().rememberOnThisMachine) {
-            await vscode.workspace.getConfiguration("vault2fa").update("rememberOnThisMachine", m.remember, vscode.ConfigurationTarget.Global);
+            await vscode.workspace.getConfiguration("authora").update("rememberOnThisMachine", m.remember, vscode.ConfigurationTarget.Global);
           }
           await this.s.unlock(m.password);
           break;
@@ -145,7 +145,7 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
         }
         case "ignoreInsight": await this.s.ignore(m.id); break;
         case "setSetting":
-          await vscode.workspace.getConfiguration("vault2fa").update(m.key, m.value, vscode.ConfigurationTarget.Global);
+          await vscode.workspace.getConfiguration("authora").update(m.key, m.value, vscode.ConfigurationTarget.Global);
           if (m.key === "rememberOnThisMachine") await this.s.syncRememberedKey();
           this.s.fire();
           break;

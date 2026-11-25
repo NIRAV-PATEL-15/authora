@@ -12,7 +12,7 @@ const DAY = 86_400_000;
 
 describe("backup", () => {
   it("names files by timestamp", () => {
-    expect(backupFileName(new Date(2026, 10, 25, 9, 5, 7))).toBe("vault2fa-20261125-090507.vault2fa");
+    expect(backupFileName(new Date(2026, 10, 25, 9, 5, 7))).toBe("authora-20261125-090507.authora");
   });
   it("writes an importable encrypted file and keeps only N newest", async () => {
     const dir = mkdtempSync(join(tmpdir(), "v2fa-b-"));
@@ -21,8 +21,8 @@ describe("backup", () => {
       await writeBackup(dir, [newEntry({ issuer: "I" + i, secret: "JBSWY3DPEHPK3PXP" })], "pw", 2, new Date(2026, 0, 1, 0, 0, i), FAST_KDF_FOR_TESTS);
     }
     const files = readdirSync(dir).sort();
-    expect(files).toEqual(["unrelated.txt", "vault2fa-20260101-000002.vault2fa", "vault2fa-20260101-000003.vault2fa"]);
-    const r = await importAny(readFileSync(join(dir, files[2]), "utf8"), "pw");
+    expect(files).toEqual(["authora-20260101-000002.authora", "authora-20260101-000003.authora", "unrelated.txt"]);
+    const r = await importAny(readFileSync(join(dir, "authora-20260101-000003.authora"), "utf8"), "pw");
     expect(r.entries[0].issuer).toBe("I3");
   });
 });

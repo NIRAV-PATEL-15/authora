@@ -4,12 +4,12 @@ const assert = require("assert");
 
 exports.run = async function () {
   const log = (m) => console.log("[it] " + m);
-  const ext = vscode.extensions.getExtension("local.vault-2fa");
+  const ext = vscode.extensions.getExtension("local.authora");
   assert.ok(ext, "extension found");
   const api = await ext.activate();
   const s = api.session;
   const cmds = await vscode.commands.getCommands(true);
-  for (const c of ["vault2fa.copyCode", "vault2fa.unlock", "vault2fa.lock", "vault2fa.import", "vault2fa.exportBackup"]) {
+  for (const c of ["authora.copyCode", "authora.unlock", "authora.lock", "authora.import", "authora.exportBackup"]) {
     assert.ok(cmds.includes(c), "command registered: " + c);
   }
   log("commands registered");
@@ -28,11 +28,11 @@ exports.run = async function () {
   assert.strictEqual(await vscode.env.clipboard.readText(), st.entries[0].code);
   log("copy works");
 
-  await vscode.commands.executeCommand("vault2fa.accounts.focus");
+  await vscode.commands.executeCommand("authora.accounts.focus");
   await new Promise((r) => setTimeout(r, 1500));
   log("view focused");
 
-  await vscode.commands.executeCommand("vault2fa.lock");
+  await vscode.commands.executeCommand("authora.lock");
   assert.strictEqual(s.viewState().screen, "locked");
   await assert.rejects(() => s.unlock("nope"));
   await s.unlock("correct horse battery");

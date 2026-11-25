@@ -28,7 +28,7 @@ export async function pickImportFile(): Promise<string | undefined> {
   const uris = await vscode.window.showOpenDialog({
     canSelectMany: false,
     openLabel: "Import",
-    filters: { "Backups": ["json", "txt", "vault2fa", "2fas"], "All files": ["*"] },
+    filters: { "Backups": ["json", "txt", "authora", "2fas"], "All files": ["*"] },
   });
   if (!uris?.length) return;
   return Buffer.from(await vscode.workspace.fs.readFile(uris[0])).toString("utf8");
@@ -40,8 +40,8 @@ function stamp() {
 
 export async function exportEncrypted(s: Session, password: string): Promise<boolean> {
   const uri = await vscode.window.showSaveDialog({
-    defaultUri: vscode.Uri.file(`vault2fa-backup-${stamp()}.vault2fa`),
-    filters: { "Vault 2FA backup": ["vault2fa"] },
+    defaultUri: vscode.Uri.file(`authora-backup-${stamp()}.authora`),
+    filters: { "Authora backup": ["authora"] },
   });
   if (!uri) return false;
   writeFileSync(uri.fsPath, await makeBackup(s.store.entries, password), { mode: 0o600 });
@@ -58,7 +58,7 @@ export async function exportPlain(s: Session): Promise<boolean> {
   );
   if (ok !== "Export unencrypted") return false;
   const uri = await vscode.window.showSaveDialog({
-    defaultUri: vscode.Uri.file(`vault2fa-otpauth-${stamp()}.txt`),
+    defaultUri: vscode.Uri.file(`authora-otpauth-${stamp()}.txt`),
     filters: { "Text": ["txt"] },
   });
   if (!uri) return false;
@@ -69,7 +69,7 @@ export async function exportPlain(s: Session): Promise<boolean> {
 export async function chooseBackupFolder(s: Session): Promise<string | undefined> {
   const uris = await vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, openLabel: "Use for auto-backup" });
   if (!uris?.length) return;
-  await vscode.workspace.getConfiguration("vault2fa").update("autoBackupFolder", uris[0].fsPath, vscode.ConfigurationTarget.Global);
+  await vscode.workspace.getConfiguration("authora").update("autoBackupFolder", uris[0].fsPath, vscode.ConfigurationTarget.Global);
   const file = await s.autoBackup(true);
   s.fire();
   return file;

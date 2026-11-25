@@ -16,14 +16,14 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const renderBar = () => {
     const open = s.store.isUnlocked;
     bar.text = open ? "$(unlock) 2FA" : "$(lock) 2FA";
-    bar.tooltip = open ? "Vault 2FA: unlocked — click to copy a code" : "Vault 2FA: locked — click to unlock";
-    bar.command = open ? "vault2fa.copyCode" : "vault2fa.unlock";
+    bar.tooltip = open ? "Authora: unlocked — click to copy a code" : "Authora: locked — click to unlock";
+    bar.command = open ? "authora.copyCode" : "authora.unlock";
   };
   renderBar();
   bar.show();
   ctx.subscriptions.push(bar, s.onDidChange(renderBar));
   ctx.subscriptions.push(vscode.workspace.onDidChangeConfiguration((e) => {
-    if (e.affectsConfiguration("vault2fa")) { s.syncRememberedKey(); s.fire(); }
+    if (e.affectsConfiguration("authora")) { s.syncRememberedKey(); s.fire(); }
   }));
 
   const focus = () => vscode.commands.executeCommand(`${VaultViewProvider.viewId}.focus`);
@@ -32,7 +32,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const ensureUnlocked = async (): Promise<boolean> => {
     if (s.store.isUnlocked) return true;
     if (!s.store.exists()) { await focus(); return false; }
-    const pw = await vscode.window.showInputBox({ prompt: "Vault 2FA master password", password: true, ignoreFocusOut: true });
+    const pw = await vscode.window.showInputBox({ prompt: "Authora master password", password: true, ignoreFocusOut: true });
     if (!pw) return false;
     try { await s.unlock(pw); return true; }
     catch (e) {
@@ -52,29 +52,29 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
   const reg = (id: string, fn: (...a: unknown[]) => unknown) =>
     ctx.subscriptions.push(vscode.commands.registerCommand(id, async (...a) => {
-      try { s.touch(); await fn(...a); } catch (e) { vscode.window.showErrorMessage(`Vault 2FA: ${(e as Error).message}`); }
+      try { s.touch(); await fn(...a); } catch (e) { vscode.window.showErrorMessage(`Authora: ${(e as Error).message}`); }
     }));
 
-  reg("vault2fa.open", focus);
-  reg("vault2fa.unlock", async () => { if (await ensureUnlocked()) await focus(); });
-  reg("vault2fa.lock", () => s.lock());
-  reg("vault2fa.copyCode", async () => {
+  reg("authora.open", focus);
+  reg("authora.unlock", async () => { if (await ensureUnlocked()) await focus(); });
+  reg("authora.lock", () => s.lock());
+  reg("authora.copyCode", async () => {
     const e = await pickEntry("Copy code for…");
     if (e) { await s.copyCode(e); vscode.window.setStatusBarMessage(`$(check) Copied ${A.label(e)} code`, 2500); }
   });
-  reg("vault2fa.insertCode", async () => {
+  reg("authora.insertCode", async () => {
     const ed = vscode.window.activeTextEditor;
     const e = await pickEntry("Insert code for…");
     if (e && ed) await ed.edit((b) => ed.selections.forEach((sel) => b.replace(sel, s.code(e))));
   });
-  reg("vault2fa.addFromUri", async () => {
+  reg("authora.addFromUri", async () => {
     if (!(await ensureUnlocked())) return;
     const text = await vscode.window.showInputBox({ prompt: "Paste otpauth:// or otpauth-migration:// URI", ignoreFocusOut: true });
     if (!text) return;
     const r = await A.importText(s, text);
     if (r.kind === "done") vscode.window.showInformationMessage(r.message);
   });
-  reg("vault2fa.import", async () => {
+  reg("authora.import", async () => {
     if (!(await ensureUnlocked())) return;
     const text = await A.pickImportFile();
     if (text === undefined) return;
@@ -86,7 +86,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
     }
     if (r.kind === "done") vscode.window.showInformationMessage(r.message);
   });
-  reg("vault2fa.exportBackup", async () => {
+  reg("authora.exportBackup", async () => {
     if (!(await ensureUnlocked())) return;
     const pw = await vscode.window.showInputBox({ prompt: "Password for the backup file (min 8 chars)", password: true, ignoreFocusOut: true, validateInput: (v) => v.length < 8 ? "Use at least 8 characters" : undefined });
     if (!pw) return;
@@ -94,12 +94,12 @@ export async function activate(ctx: vscode.ExtensionContext) {
     if (again !== pw) { vscode.window.showErrorMessage("Passwords don't match"); return; }
     if (await A.exportEncrypted(s, pw)) vscode.window.showInformationMessage("Encrypted backup saved");
   });
-  reg("vault2fa.chooseBackupFolder", async () => { if (await ensureUnlocked()) await A.chooseBackupFolder(s); });
-  reg("vault2fa.syncClock", async () => {
+  reg("authora.chooseBackupFolder", async () => { if (await ensureUnlocked()) await A.chooseBackupFolder(s); });
+  reg("authora.syncClock", async () => {
     const off = await A.syncClock(s);
-    vscode.window.showInformationMessage(`Vault 2FA clock offset: ${off}s`);
+    vscode.window.showInformationMessage(`Authora clock offset: ${off}s`);
   });
-  reg("vault2fa.changePassword", async () => {
+  reg("authora.changePassword", async () => {
     if (!(await ensureUnlocked())) return;
     const oldPw = await vscode.window.showInputBox({ prompt: "Current master password", password: true, ignoreFocusOut: true });
     if (!oldPw) return;

@@ -28,11 +28,11 @@ export function advise(s: AdvisorInput): Insight[] {
   }
   if (s.autoLockMinutes <= 0) {
     out.push({ id: "autoLockOff", level: "warning", title: "Auto-lock is off",
-      description: "Anyone at your unlocked machine can read your codes. Set vault2fa.autoLockMinutes." });
+      description: "Anyone at your unlocked machine can read your codes. Set authora.autoLockMinutes." });
   }
   if (s.rememberOnThisMachine) {
     out.push({ id: "rememberedKey", level: "info", title: "Vault key is remembered on this machine",
-      description: "The vault opens without a password after restart. Turn off vault2fa.rememberOnThisMachine for full protection." });
+      description: "The vault opens without a password after restart. Turn off authora.rememberOnThisMachine for full protection." });
   }
   return out.filter((i) => !s.ignored.includes(i.id));
 }

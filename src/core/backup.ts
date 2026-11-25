@@ -3,11 +3,11 @@ import { join } from "node:path";
 import { DEFAULT_KDF, KdfCost, seal } from "./envelope";
 import { Entry } from "./otp";
 
-const PATTERN = /^vault2fa-\d{8}-\d{6}\.vault2fa$/;
+const PATTERN = /^authora-\d{8}-\d{6}\.authora$/;
 const pad = (n: number) => String(n).padStart(2, "0");
 
 export function backupFileName(d: Date): string {
-  return `vault2fa-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.vault2fa`;
+  return `authora-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.authora`;
 }
 
 /** Encrypt entries with `password` into a portable backup string. */
