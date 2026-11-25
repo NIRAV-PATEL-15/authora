@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 — 2026-11-25
+- Releases now publish automatically from GitHub Actions through Marketplace trusted publishing.
+- README: release instructions for maintainers.
+
 ## 0.1.0 — 2026-11-25
 First release.
 - Password-protected vault (Argon2id + AES-256-GCM). Locks on startup, on demand and when idle.

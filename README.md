@@ -62,6 +62,15 @@ Provided as is, without warranty (MIT). Before removing your secrets from anothe
 **keep an independent backup**. If you lose the vault and its backups you can be locked out of
 your accounts.
 
+## Releasing (maintainers)
+Releases are published by GitHub Actions through Marketplace **trusted publishing**, so no token is stored anywhere.
+1. Add a `## x.y.z` section to `CHANGELOG.md`.
+2. Run `npm version patch` (or `minor`/`major`). This bumps `package.json`, commits and tags `vx.y.z`.
+3. Run `git push --follow-tags`. The **Release** workflow tests, publishes to the Marketplace and creates the GitHub release with the `.vsix`.
+
+One-time setup: Marketplace → publisher **NiravPatel15** → **Trusted Publishing** → **Create**, with owner
+`NIRAV-PATEL-15`, repository `authora`, workflow `release.yml`, and environment left empty.
+
 ## Develop
 ```bash
 npm install

@@ -1,0 +1,37 @@
+name: Release
+# Push a tag like v0.1.1 → test, package, publish to the VS Code Marketplace
+# (trusted publishing / OIDC, no stored token) and attach the .vsix to a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create the GitHub release
+      id-token: write   # lets `vsce publish --oidc` authenticate via the Marketplace trusted publishing policy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - name: Tag must match package.json version
+        run: |
+          PKG="v$(node -p "require('./package.json').version")"
+          [ "$PKG" = "$GITHUB_REF_NAME" ] || { echo "::error::tag $GITHUB_REF_NAME != package.json $PKG"; exit 1; }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Package
+        run: npx -y @vscode/vsce@4.1.1 package --no-dependencies
+      - name: Publish to VS Code Marketplace
+        run: npx -y @vscode/vsce@4.1.1 publish --oidc --packagePath *.vsix
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          NOTES=$(awk -v v="## $VER" 'index($0, v)==1 {f=1; next} /^## / && f {exit} f' CHANGELOG.md)
+          printf 'Install: search **Authora** in VS Code Extensions, or `code --install-extension NiravPatel15.authora`.\n%s\n' "$NOTES" > notes.md
+          gh release create "$GITHUB_REF_NAME" *.vsix --title "Authora $VER" --notes-file notes.md
