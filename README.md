@@ -8,6 +8,11 @@ No account, no cloud, no telemetry.
 
 ![Create vault, unlock, menu, add account](images/screens.png)
 
+## Install
+- **VS Code:** search **Authora** in Extensions, or run `code --install-extension NiravPatel15.authora`
+- **Cursor / Windsurf / VSCodium:** search **Authora** (from [Open VSX](https://open-vsx.org/extension/NiravPatel15/authora))
+- **Offline:** download the `.vsix` from [Releases](https://github.com/NIRAV-PATEL-15/authora/releases), then Extensions → ⋯ → Install from VSIX…
+
 ## Quick start
 1. Click the 🛡 **Authora** icon in the Activity Bar.
 2. Create a master password. There is no recovery, so keep a backup.
@@ -66,7 +71,7 @@ your accounts.
 Releases are published by GitHub Actions through Marketplace **trusted publishing**, so no token is stored anywhere.
 1. Add a `## x.y.z` section to `CHANGELOG.md`.
 2. Run `npm version patch` (or `minor`/`major`). This bumps `package.json`, commits and tags `vx.y.z`.
-3. Run `git push --follow-tags`. The **Release** workflow tests, publishes to the Marketplace and creates the GitHub release with the `.vsix`.
+3. Run `git push --follow-tags`. The **Release** workflow tests, publishes to the Marketplace and publishes to Open VSX (`OVSX_PAT` secret) and creates the GitHub release with the `.vsix`.
 
 One-time setup: Marketplace → publisher **NiravPatel15** → **Trusted Publishing** → **Create**, with owner
 `NIRAV-PATEL-15`, repository `authora`, workflow `release.yml`, and environment left empty.

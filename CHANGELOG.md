@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-11-25
+- Now also published on Open VSX (Cursor, Windsurf, VSCodium, Gitpod).
+- Removed the Preview label.
+
 ## 0.1.1 — 2026-11-25
 - Releases now publish automatically from GitHub Actions through Marketplace trusted publishing.
 - README: release instructions for maintainers.
