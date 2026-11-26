@@ -16,9 +16,10 @@ No account, no cloud, no telemetry.
 ## Quick start
 1. Click the 🛡 **Authora** icon in the Activity Bar.
 2. Create a master password. There is no recovery, so keep a backup.
-3. Click **+** and paste a QR screenshot (Ctrl/Cmd+V), drop a QR image, paste an `otpauth://` link,
+3. Optionally set a 6-digit PIN for quick unlock (or later in ⋯ → Security).
+4. Click **+** and paste a QR screenshot (Ctrl/Cmd+V), drop a QR image, paste an `otpauth://` link,
    or import a backup from another app.
-4. Click a card to copy its code, or press **Ctrl+Alt+2** (Cmd+Alt+2 on macOS) from anywhere.
+5. Click a card to copy its code, or press **Ctrl+Alt+2** (Cmd+Alt+2 on macOS) from anywhere.
 
 ## Features
 - **Codes:** TOTP, HOTP, Steam Guard, Battle.net and hex secrets; SHA-1/256/512; 1–10 digits; custom periods.
@@ -26,6 +27,8 @@ No account, no cloud, no telemetry.
   AES-256-GCM key. Nothing is ever stored in plain text.
 - **Locking:** the vault locks when VS Code starts, when you click lock, and after inactivity.
   Wrong passwords are throttled.
+- **Quick-unlock PIN (optional):** set a 6-digit PIN and unlock by typing it, with no Enter needed. The PIN works only on
+  this computer. 3 wrong PINs lock it for 1 minute; after 9 it is erased and the master password is required.
 - **Remember on this machine (optional):** keeps the key in the OS keychain through VS Code SecretStorage.
 - **Adding accounts:** paste or drop a QR screenshot, paste `otpauth://` links (including Google
   Authenticator export links), or type the details by hand.
@@ -60,6 +63,9 @@ No account, no cloud, no telemetry.
 ## Security notes
 - Network: the only request is the optional **Sync clock** (HEAD to google.com, to read the time).
 - The webview UI never receives your secrets. Codes are generated in the extension host.
+- The quick-unlock PIN unwraps a copy of the vault key kept in the OS keychain (VS Code SecretStorage). It works only on
+  this computer. The vault file and every backup still need the master password, so a stolen file can't be opened with the PIN.
+  Changing the master password erases the PIN.
 - "Remember on this machine" stores the vault key in the OS keychain so VS Code opens the vault at startup.
   After you lock (manually or by auto-lock), the password is required again, even after a reload.
 - Security settings apply at user level only. A repository's `.vscode/settings.json` cannot change them.

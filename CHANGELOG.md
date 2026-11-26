@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 — unreleased
+- **New: quick-unlock PIN.** Set a 6-digit PIN and unlock Authora by typing it. It unlocks on the 6th digit, with no Enter.
+  - It's offered when you create a vault. Existing users see a one-time "New" pop-up, and can set it up any time in ⋯ → Security
+    (set up, change, remove).
+  - 3 wrong PINs lock the PIN for 1 minute; the master password always works. After 9 wrong PINs in a row the PIN is erased.
+  - The command palette and `Ctrl+Alt+2` ask for the PIN too.
+  - The PIN only works on this computer (OS keychain). Your vault file and backups still need the master password.
+    Changing the master password erases the PIN and asks you to set it again.
+
 ## 0.1.3 — 2026-11-25
 Security and reliability release, based on an independent security review. Updating is recommended.
 - **Fixed data loss with several VS Code windows open:** changes made in one window could be overwritten by
