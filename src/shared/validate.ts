@@ -1,4 +1,5 @@
 import type { ViewMsg } from "./protocol";
+import { isPinFormat } from "./pin";
 
 const str = (v: unknown, max = 512) => typeof v === "string" && v.length <= max;
 const bool = (v: unknown) => typeof v === "boolean";
@@ -15,10 +16,12 @@ export function isValidViewMsg(x: unknown): x is ViewMsg {
   const m = x as any;
   switch (m.type) {
     case "ready": case "activity": case "lock": case "refresh": case "importFile": case "exportPlain":
-    case "backupNow": case "chooseBackupFolder": case "syncClock":
+    case "backupNow": case "chooseBackupFolder": case "syncClock": case "removePin": case "dismissPinOffer":
       return true;
     case "create": return str(m.password, 1024);
     case "unlock": return str(m.password, 1024) && bool(m.remember);
+    case "unlockPin": return isPinFormat(m.pin) && bool(m.remember);
+    case "setPin": return isPinFormat(m.pin);
     case "copy": case "next": case "delete": case "pin": case "showQr": return str(m.id, 64);
     case "ignoreInsight": return str(m.id, 64);
     case "importText": return str(m.text, MAX_IMPORT_CHARS) && (m.password === undefined || str(m.password, 1024));

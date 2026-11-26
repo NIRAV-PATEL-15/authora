@@ -5,6 +5,7 @@ import { HostMsg, ViewMsg } from "../shared/protocol";
 import { ThrottledError } from "../core/vault";
 import { WrongPasswordError } from "../core/envelope";
 import { WrongBackupPasswordError } from "../core/importers";
+import { PinInvalidError, PinLockedError, WrongPinError, pinErrorText } from "../core/pin";
 import { newEntry, validateSecret } from "../core/otp";
 import * as A from "./actions";
 import { isValidViewMsg } from "../shared/validate";
@@ -55,6 +56,23 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
           }
           await this.s.unlock(m.password);
           break;
+        case "unlockPin":
+          if (m.remember !== cfg().rememberOnThisMachine) {
+            await vscode.workspace.getConfiguration("authora").update("rememberOnThisMachine", m.remember, vscode.ConfigurationTarget.Global);
+          }
+          await this.s.unlockWithPin(m.pin);
+          break;
+        case "setPin":
+          await this.s.setPin(m.pin);
+          this.post({ type: "done", form });
+          this.post({ type: "toast", text: "PIN set", kind: "ok" });
+          break;
+        case "removePin": {
+          const ok = await vscode.window.showWarningMessage("Remove your quick-unlock PIN?", { modal: true }, "Remove");
+          if (ok === "Remove") { await this.s.removePin(); this.post({ type: "toast", text: "PIN removed" }); }
+          break;
+        }
+        case "dismissPinOffer": await this.s.dismissPinOffer(); break;
         case "lock": await this.s.lock(); break;
         case "refresh":
           if (this.s.store.isUnlocked && this.s.store.refresh()) this.post({ type: "codes", codes: this.s.codes() });
@@ -135,11 +153,10 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
           break;
         case "changePassword":
           if (m.newPassword.length < 8) throw new Error("Use at least 8 characters");
-          await this.s.store.changePassword(m.oldPassword, m.newPassword);
-          await this.s.syncRememberedKey();
-          await this.s.autoBackup();
+          const { hadPin } = await this.s.changePassword(m.oldPassword, m.newPassword);
           this.post({ type: "done", form });
           this.post({ type: "toast", text: "Password changed", kind: "ok" });
+          if (hadPin) this.post({ type: "pinAgain" });
           break;
         case "syncClock": {
           const off = await A.syncClock(this.s);
@@ -155,12 +172,17 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
           break;
       }
     } catch (err) {
+      if (err instanceof WrongPinError || err instanceof PinLockedError || err instanceof PinInvalidError) {
+        this.pushState();
+        this.post({ type: "error", form: err instanceof WrongPinError && err.erased || err instanceof PinInvalidError ? "unlock" : form, text: pinErrorText(err) });
+        return;
+      }
       if (err instanceof ThrottledError) { this.pushState(err.waitMs); this.post({ type: "error", form, text: err.message }); return; }
       const text = err instanceof WrongPasswordError ? (form === "changePassword" ? "Current password is wrong" : "Wrong password")
         : err instanceof WrongBackupPasswordError ? "Wrong backup password"
         : (err as Error).message || String(err);
       this.post({ type: "error", form, text });
-      if (!["create", "unlock", "addManual", "importText", "exportEncrypted", "changePassword", "update"].includes(form)) {
+      if (!["create", "unlock", "addManual", "importText", "exportEncrypted", "changePassword", "update", "unlockPin", "setPin"].includes(form)) {
         this.post({ type: "toast", text, kind: "error" });
       }
     }
@@ -177,3 +199,4 @@ export class VaultViewProvider implements vscode.WebviewViewProvider {
 <body><div id="app"></div><script nonce="${nonce}" src="${js}"></script></body></html>`;
   }
 }
+

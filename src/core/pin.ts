@@ -138,3 +138,12 @@ export class PinManager {
     renameSync(tmp, this.attemptsFile);
   }
 }
+
+/** User-facing text for a failed PIN unlock. */
+export function pinErrorText(e: WrongPinError | PinLockedError | PinInvalidError): string {
+  if (!(e instanceof WrongPinError) || e.erased) return e.message;
+  if (e.failures >= PIN_MAX_FAILS - PIN_FAILS_PER_LOCK) return `Wrong PIN · ${PIN_MAX_FAILS - e.failures} more wrong PIN${PIN_MAX_FAILS - e.failures === 1 ? "" : "s"} will erase it`;
+  return e.triesBeforeLock > 0
+    ? `Wrong PIN · ${e.triesBeforeLock} tr${e.triesBeforeLock === 1 ? "y" : "ies"} before a 1-minute lock`
+    : "Wrong PIN · PIN locked for 1 minute";
+}

@@ -20,11 +20,18 @@ export interface ViewSettings {
   autoLockMinutes: number;
   rememberOnThisMachine: boolean;
   autoBackupFolder: string;
+  pinSet: boolean;
+}
+
+/** Shown on the locked screen when a quick-unlock PIN is stored on this machine. */
+export interface PinView {
+  lockedMs: number;
+  failures: number;
 }
 
 export type ViewState =
   | { screen: "setup" }
-  | { screen: "locked"; throttledMs?: number; remember: boolean }
+  | { screen: "locked"; throttledMs?: number; remember: boolean; pin?: PinView }
   | {
       screen: "unlocked";
       entries: EntryView[];
@@ -32,6 +39,8 @@ export type ViewState =
       insights: Insight[];
       settings: ViewSettings;
       lastBackupAt?: number;
+      /** Offer to set a PIN: right after creating a vault, or once as a "new feature" for existing users. */
+      offerPin?: "afterCreate" | "newFeature";
     };
 
 export type HostMsg =
@@ -41,7 +50,8 @@ export type HostMsg =
   | { type: "error"; form: string; text: string }
   | { type: "done"; form: string }
   | { type: "qr"; id: string; svg: string; label: string }
-  | { type: "needPassword"; form: "import"; text: string; format: string };
+  | { type: "needPassword"; form: "import"; text: string; format: string }
+  | { type: "pinAgain" };
 
 export interface ManualEntry {
   issuer: string;
@@ -59,6 +69,10 @@ export type ViewMsg =
   | { type: "activity" }
   | { type: "create"; password: string }
   | { type: "unlock"; password: string; remember: boolean }
+  | { type: "unlockPin"; pin: string; remember: boolean }
+  | { type: "setPin"; pin: string }
+  | { type: "removePin" }
+  | { type: "dismissPinOffer" }
   | { type: "lock" }
   | { type: "refresh" }
   | { type: "copy"; id: string }

@@ -170,3 +170,15 @@ describe("PinManager", () => {
     expect(pm.hasPin).toBe(false);
   });
 });
+
+describe("pinErrorText", () => {
+  it("counts down to the lock, then towards erasure", async () => {
+    const { pinErrorText } = await import("../src/core/pin");
+    expect(pinErrorText(new WrongPinError(false, 2, 1))).toBe("Wrong PIN · 2 tries before a 1-minute lock");
+    expect(pinErrorText(new WrongPinError(false, 1, 2))).toBe("Wrong PIN · 1 try before a 1-minute lock");
+    expect(pinErrorText(new WrongPinError(false, 0, 3))).toBe("Wrong PIN · PIN locked for 1 minute");
+    expect(pinErrorText(new WrongPinError(false, 0, 6))).toBe("Wrong PIN · 3 more wrong PINs will erase it");
+    expect(pinErrorText(new WrongPinError(false, 1, 8))).toBe("Wrong PIN · 1 more wrong PIN will erase it");
+    expect(pinErrorText(new WrongPinError(true, 0, 9))).toBe("Too many wrong PINs. PIN erased. Unlock with your master password.");
+  });
+});

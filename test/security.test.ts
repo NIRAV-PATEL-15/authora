@@ -142,3 +142,20 @@ describe("L4: clock offset", () => {
     expect(generateCode(e, 59_000, NaN)).toBe(generateCode(e, 59_000, 0));
   });
 });
+
+describe("PIN messages from the webview", () => {
+  it("accepts well-formed PIN messages", () => {
+    expect(isValidViewMsg({ type: "unlockPin", pin: "482913", remember: false })).toBe(true);
+    expect(isValidViewMsg({ type: "setPin", pin: "482913" })).toBe(true);
+    expect(isValidViewMsg({ type: "removePin" })).toBe(true);
+    expect(isValidViewMsg({ type: "dismissPinOffer" })).toBe(true);
+  });
+
+  it("rejects anything that is not exactly six digits", () => {
+    for (const pin of ["48291", "4829134", "48a913", 482913, null, undefined]) {
+      expect(isValidViewMsg({ type: "unlockPin", pin, remember: false })).toBe(false);
+      expect(isValidViewMsg({ type: "setPin", pin })).toBe(false);
+    }
+    expect(isValidViewMsg({ type: "unlockPin", pin: "482913" })).toBe(false);
+  });
+});
