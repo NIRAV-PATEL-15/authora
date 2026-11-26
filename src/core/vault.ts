@@ -96,8 +96,13 @@ export class VaultStore {
     }
   }
 
-  // ---- cross-process lock (O_EXCL lock file) ----
-  private async withFileLock<T>(fn: () => Promise<T> | T): Promise<T> {
+  /** Salt of the vault file's current key (readable while locked); changes whenever the vault is re-keyed. */
+  currentSalt(): string {
+    return this.readEnvelope().kdf.salt;
+  }
+
+  // ---- cross-process lock (O_EXCL lock file); also used for PIN attempt bookkeeping ----
+  async withLock<T>(fn: () => Promise<T> | T): Promise<T> {
     mkdirSync(dirname(this.filePath), { recursive: true });
     const deadline = Date.now() + LOCK_WAIT_MS;
     let fd: number | null = null;
@@ -173,7 +178,7 @@ export class VaultStore {
   /** Locked read-modify-write against the latest version on disk. */
   private async transact<T>(fn: (d: VaultData) => T): Promise<T> {
     this.unlocked();
-    return this.withFileLock(() => {
+    return this.withLock(() => {
       this.syncFromDisk();
       const result = fn(this.data!);
       this.writeEnvelope(sealWithKey(this.data!, this.key!, this.kdf!));
@@ -185,7 +190,7 @@ export class VaultStore {
     if (this.exists()) throw new Error("Vault already exists");
     const kdf = newKdf(this.cost);
     const key = await deriveKey(password, kdf);
-    await this.withFileLock(() => {
+    await this.withLock(() => {
       if (existsSync(this.filePath)) throw new Error("Vault already exists");
       this.kdf = kdf;
       this.key = key;
@@ -252,7 +257,7 @@ export class VaultStore {
     if (!(await this.verifyPassword(oldPw))) throw new WrongPasswordError();
     const kdf = newKdf(this.cost);
     const key = await deriveKey(newPw, kdf);
-    await this.withFileLock(() => {
+    await this.withLock(() => {
       this.syncFromDisk();
       this.key!.fill(0);
       this.kdf = kdf;
