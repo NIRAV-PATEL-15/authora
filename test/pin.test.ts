@@ -38,7 +38,7 @@ describe("pin rules", () => {
 });
 
 // ---------------- PinManager ----------------
-import { writeFileSync } from "node:fs";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { WrongPasswordError } from "../src/core/envelope";
 import {
@@ -157,10 +157,43 @@ describe("PinManager", () => {
     expect(pm.status()).toEqual({ lockedMs: 0, failures: 0 });
   });
 
-  it("caps a lock far in the future at one minute", () => {
+  it("a lock stamped in the future (clock moved back) never holds the PIN locked past a minute", () => {
     const { pm, attempts } = setup();
-    writeFileSync(attempts, JSON.stringify({ failures: 3, lockedUntil: clock + 10 * 3600_000 }));
-    expect(pm.status().lockedMs).toBe(PIN_LOCK_MS);
+    writeFileSync(attempts, JSON.stringify({ failures: 3, lockedAt: clock + 10 * 3600_000 }));
+    expect(pm.status().lockedMs).toBeLessThanOrEqual(PIN_LOCK_MS);
+    clock += PIN_LOCK_MS + 1;
+    expect(pm.status().lockedMs).toBe(0);
+  });
+
+  it("a PIN lock expires within a minute even if the clock moved back after it started", async () => {
+    const { pm } = setup();
+    await pm.set(KEY, "482913", SALT);
+    for (let i = 0; i < 3; i++) await wrong(pm);
+    clock -= 3600_000;
+    clock += PIN_LOCK_MS + 1;
+    expect(pm.status().lockedMs).toBe(0);
+    await pm.unlock("482913", SALT, okVerify);
+  });
+
+  it("parallel guesses cannot get past the 3-attempt limit", async () => {
+    const { pm } = setup();
+    await pm.set(KEY, "482913", SALT);
+    const guesses = Array.from({ length: 30 }, (_, i) => String(500000 + i * 7));
+    const results = await Promise.allSettled(guesses.map((g) => pm.unlock(g, SALT, okVerify)));
+    const checked = results.filter((r) => !(r.status === "rejected" && r.reason instanceof PinLockedError));
+    expect(checked.length).toBeLessThanOrEqual(3);
+  });
+
+  it("refuses PIN attempts when they can't be counted", async () => {
+    const { pm, attempts } = setup();
+    await pm.set(KEY, "482913", SALT);
+    mkdirSync(attempts.replace(/\.json$/, ".json.tmp"));
+    for (let i = 0; i < 5; i++) {
+      const e = await pm.unlock("000001", SALT, okVerify).catch((x) => x);
+      expect(e).not.toBeInstanceOf(WrongPinError);
+      expect(String(e.message)).toMatch(/master password/);
+    }
+    expect(pm.hasPin).toBe(true);
   });
 
   it("set rejects weak and malformed PINs", async () => {
