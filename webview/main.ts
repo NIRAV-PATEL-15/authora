@@ -1,6 +1,7 @@
 import jsQR from "jsqr";
 import type { EntryView, HostMsg, ManualEntry, ViewMsg, ViewState } from "../src/shared/protocol";
 import type { Insight } from "../src/core/advisor";
+import { PIN_INFO_TEXT, PIN_LENGTH, isWeakPin } from "../src/shared/pin";
 
 declare function acquireVsCodeApi(): { postMessage(m: ViewMsg): void };
 const vscode = acquireVsCodeApi();
@@ -75,8 +76,14 @@ type Sheet =
   | { kind: "security" }
   | { kind: "advisor" }
   | { kind: "qr"; label: string; svg: string }
-  | { kind: "importPassword"; text: string; format: string };
+  | { kind: "importPassword"; text: string; format: string }
+  | { kind: "pinSetup"; mode: PinSetupMode };
+type PinSetupMode = "afterCreate" | "newFeature" | "settings" | "again";
 let sheet: Sheet | null = null;
+/** Locked screen: the user chose "Use master password" for this lock. Reset each time the vault locks. */
+let preferPassword = false;
+/** The PIN offer was answered in this webview; don't reopen it while the host catches up. */
+let pinOfferAnswered = false;
 
 const entries = (): EntryView[] => (state?.screen === "unlocked" ? state.entries : []);
 
@@ -165,6 +172,69 @@ const clampInt = (v: string, lo: number, hi: number, dflt: number) => {
 };
 const val = (root: HTMLElement, name: string) => (root.querySelector(`[name="${name}"]`) as HTMLInputElement).value;
 
+// ---------- PIN entry ----------
+interface PinBoxes { el: HTMLElement; clear(shake?: boolean): void; setDisabled(d: boolean): void; focus(): void }
+
+/** Six single-digit boxes: auto-advance, Backspace steps back, paste fills, completes on the 6th digit. */
+function pinBoxes(onComplete: (pin: string) => void, autofocus = true): PinBoxes {
+  const boxes: HTMLInputElement[] = [];
+  const el = h("div", { class: "pin-boxes", role: "group", "aria-label": "6-digit PIN" });
+  const value = () => boxes.map((b) => b.value).join("");
+  const check = () => {
+    const v = value();
+    if (v.length === PIN_LENGTH) { boxes.forEach((b) => b.blur()); onComplete(v); }
+  };
+  const fill = (from: number, digits: string) => {
+    [...digits].slice(0, PIN_LENGTH - from).forEach((c, j) => { boxes[from + j].value = c; boxes[from + j].classList.add("filled"); });
+    boxes[Math.min(from + digits.length, PIN_LENGTH - 1)].focus();
+  };
+  for (let i = 0; i < PIN_LENGTH; i++) {
+    const b = h("input", { class: "pin-box", inputmode: "numeric", autocomplete: "off", maxlength: 1, "aria-label": `Digit ${i + 1}` }) as HTMLInputElement;
+    b.addEventListener("input", () => {
+      const digits = b.value.replace(/\D/g, "");
+      b.value = "";
+      b.classList.remove("filled");
+      if (digits) fill(i, digits);
+      check();
+    });
+    b.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace" && !b.value && i > 0) {
+        e.preventDefault();
+        boxes[i - 1].value = "";
+        boxes[i - 1].classList.remove("filled");
+        boxes[i - 1].focus();
+      } else if (e.key === "ArrowLeft" && i > 0) boxes[i - 1].focus();
+      else if (e.key === "ArrowRight" && i < PIN_LENGTH - 1) boxes[i + 1].focus();
+    });
+    b.addEventListener("paste", (e) => {
+      const digits = (e.clipboardData?.getData("text") || "").replace(/\D/g, "");
+      if (!digits) return;
+      e.preventDefault();
+      fill(i, digits);
+      check();
+    });
+    boxes.push(b);
+    el.append(b);
+  }
+  if (autofocus) setTimeout(() => boxes[0].focus(), 30);
+  return {
+    el,
+    clear(shake = false) {
+      boxes.forEach((b) => { b.value = ""; b.classList.remove("filled"); });
+      if (shake) { el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
+      if (!boxes[0].disabled) boxes[0].focus();
+    },
+    setDisabled(d) { boxes.forEach((b) => { b.disabled = d; }); },
+    focus() { boxes[0].focus(); },
+  };
+}
+
+function infoIcon(text: string) {
+  return h("span", { class: "info-icon", tabindex: "0", role: "note", "aria-label": text }, "i", h("span", { class: "info-tip" }, text));
+}
+
+const mmss = (ms: number) => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
+
 // ---------- screens ----------
 function renderSetup() {
   const form = h("form", { class: "auth-card", onSubmit: (ev: Event) => {
@@ -198,7 +268,54 @@ function renderSetup() {
   return h("div", { class: "auth" }, form);
 }
 
-function renderLocked(throttledMs: number | undefined, rememberOn: boolean) {
+function renderLocked(throttledMs: number | undefined, rememberOn: boolean, pin?: { lockedMs: number; failures: number }) {
+  if (pin && !preferPassword) return renderPinLocked(pin, rememberOn);
+  return renderPasswordLocked(throttledMs, rememberOn, !!pin);
+}
+
+function renderPinLocked(pin: { lockedMs: number; failures: number }, rememberOn: boolean) {
+  const remember = h("input", { type: "checkbox", name: "remember", checked: rememberOn }) as HTMLInputElement;
+  remember.setAttribute("type", "checkbox");
+  const status = h("div", { class: "pin-status" });
+  const usePw = h("button", { type: "button", class: "link-btn", onClick: () => { preferPassword = true; render(); } }, "Use master password");
+  const boxes = pinBoxes((v) => {
+    boxes.setDisabled(true);
+    setError("unlockPin", "");
+    send({ type: "unlockPin", pin: v, remember: remember.checked });
+  }, pin.lockedMs <= 0);
+  const card = h("div", { class: "auth-card" },
+    h("div", { class: "brand" }, h("div", { class: "lock-orb" }, icon("lock")), h("h1", {}, "Vault locked"),
+      h("p", { class: "muted pin-sub" }, "Enter your PIN", infoIcon(PIN_INFO_TEXT))),
+    boxes.el,
+    errorBox("unlockPin"),
+    status,
+    h("label", { class: "check center-check" }, remember, h("span", {}, "Remember on this machine (OS keychain)")),
+    usePw,
+  );
+  if (pin.lockedMs > 0) {
+    boxes.setDisabled(true);
+    usePw.classList.add("highlight");
+    const until = Date.now() + pin.lockedMs;
+    const tick = () => {
+      if (!status.isConnected) return;
+      const left = until - Date.now();
+      if (left <= 0) {
+        status.textContent = "";
+        usePw.classList.remove("highlight");
+        boxes.setDisabled(false);
+        boxes.focus();
+        return;
+      }
+      status.textContent = `PIN locked · try again in ${mmss(left)}`;
+      setTimeout(tick, 250);
+    };
+    status.textContent = `PIN locked · try again in ${mmss(pin.lockedMs)}`;
+    setTimeout(tick, 250); // first tick after the screen is attached (tick stops once it is removed)
+  }
+  return h("div", { class: "auth" }, card);
+}
+
+function renderPasswordLocked(throttledMs: number | undefined, rememberOn: boolean, pinAvailable: boolean) {
   const remember = h("input", { type: "checkbox", name: "remember", checked: rememberOn }) as HTMLInputElement;
   remember.setAttribute("type", "checkbox");
   const btn = h("button", { class: "btn primary block", type: "submit" }, "Unlock");
@@ -215,6 +332,7 @@ function renderLocked(throttledMs: number | undefined, rememberOn: boolean) {
     h("label", { class: "check" }, remember, h("span", {}, "Remember on this machine (OS keychain)")),
     errorBox("unlock"),
     btn,
+    pinAvailable ? h("button", { type: "button", class: "link-btn", onClick: () => { preferPassword = false; render(); } }, "Use PIN") : null,
   );
   if (throttledMs && throttledMs > 0) {
     btn.disabled = true;
@@ -366,6 +484,11 @@ function openSheet(s: Sheet) {
   renderSheet();
 }
 function closeSheet() {
+  // Closing the one-time PIN offer (X, backdrop, Escape) counts as "Not now".
+  if (sheet?.kind === "pinSetup" && (sheet.mode === "afterCreate" || sheet.mode === "newFeature") && !pinOfferAnswered) {
+    pinOfferAnswered = true;
+    send({ type: "dismissPinOffer" });
+  }
   sheet = null;
   renderSheet();
 }
@@ -396,6 +519,7 @@ function renderSheet() {
     case "advisor": el = advisorSheet(); break;
     case "qr": el = qrSheet(s.label, s.svg); break;
     case "importPassword": el = importPasswordSheet(s.text, s.format); break;
+    case "pinSetup": el = pinSetupSheet(s.mode); break;
   }
   host.append(el);
   const f = host.querySelector<HTMLElement>("[autofocus], input:not([type=checkbox]), textarea");
@@ -584,6 +708,55 @@ function backupSheet() {
   ], () => openSheet({ kind: "menu" }));
 }
 
+/** Choose a PIN, confirm it, and save automatically when both match. */
+function pinSetupSheet(mode: PinSetupMode): HTMLElement {
+  const answer = () => closeSheet(); // closeSheet records "Not now" for the one-time offer
+  const title = mode === "again" ? "Set your PIN again" : mode === "settings" && state?.screen === "unlocked" && state.settings.pinSet ? "Change PIN" : "Quick-unlock PIN";
+  const back = mode === "settings" ? () => openSheet({ kind: "security" }) : undefined;
+
+  const entry = () => {
+    let first: string | null = null;
+    const prompt = h("p", { class: "pin-sub" }, h("span", {}, "Choose a 6-digit PIN"), infoIcon(PIN_INFO_TEXT));
+    const label = prompt.firstChild as HTMLElement;
+    const restart = (msg: string) => { first = null; label.textContent = "Choose a 6-digit PIN"; setError("setPin", msg); boxes.clear(true); };
+    const boxes = pinBoxes((v) => {
+      if (first === null) {
+        if (isWeakPin(v)) return restart("Too easy to guess. Choose another PIN.");
+        first = v;
+        setError("setPin", "");
+        label.textContent = "Confirm your PIN";
+        boxes.clear();
+      } else if (v !== first) {
+        restart("PINs don't match. Start again.");
+      } else {
+        boxes.setDisabled(true);
+        pinOfferAnswered = true;
+        send({ type: "setPin", pin: v });
+      }
+    });
+    const skip = mode === "afterCreate" || mode === "again"
+      ? h("button", { type: "button", class: "link-btn muted", onClick: answer }, mode === "afterCreate" ? "Skip for now" : "Skip")
+      : null;
+    return [
+      mode === "afterCreate" ? h("p", { class: "muted center" }, "Unlock with a PIN instead of typing your master password on this computer.") : null,
+      mode === "again" ? h("p", { class: "muted center" }, "Your old PIN was removed because the master password changed.") : null,
+      prompt, boxes.el, errorBox("setPin"), skip,
+    ];
+  };
+
+  if (mode === "newFeature") {
+    const body = h("div", { class: "pin-offer" },
+      h("div", { class: "empty-orb" }, icon("key")),
+      h("h3", {}, "✨ New: quick-unlock PIN"),
+      h("p", { class: "muted" }, "Unlock Authora with a 6-digit PIN instead of typing your master password."),
+      h("p", { class: "hint" }, PIN_INFO_TEXT),
+      h("button", { class: "btn primary block", onClick: () => body.replaceChildren(...entry().filter((x): x is HTMLElement => !!x)) }, "Set up PIN"),
+      h("button", { type: "button", class: "link-btn muted", onClick: answer }, "Not now"));
+    return sheetFrame(title, [body]);
+  }
+  return sheetFrame(title, entry(), back);
+}
+
 function passwordSheet() {
   const btn = h("button", { class: "btn primary block", type: "submit" }, "Change password");
   const meter = h("div", { class: "meter" }, h("div", { class: "meter-bar" }));
@@ -617,6 +790,15 @@ function securitySheet() {
   return sheetFrame("Security", [
     h("label", { class: "toggle-row" }, h("span", { class: "menu-text" }, h("strong", {}, "Auto-lock after inactivity"),
       h("span", { class: "muted" }, "Vault always locks when VS Code restarts")), lock),
+    h("div", { class: "toggle-row" },
+      h("span", { class: "menu-text" },
+        h("strong", {}, "Quick-unlock PIN ", h("span", { class: `pill ${st.pinSet ? "on" : ""}` }, st.pinSet ? "On" : "Off")),
+        h("span", { class: "muted" }, "6-digit PIN on this computer")),
+      st.pinSet
+        ? h("span", { class: "row-actions" },
+            h("button", { class: "btn ghost small", onClick: () => openSheet({ kind: "pinSetup", mode: "settings" }) }, "Change"),
+            h("button", { class: "btn danger small", onClick: () => send({ type: "removePin" }) }, "Remove"))
+        : h("button", { class: "btn ghost small", onClick: () => openSheet({ kind: "pinSetup", mode: "settings" }) }, "Set up")),
     toggleRow("Hide codes until hover", "Shoulder-surfing protection", st.hideCodes, (v) => send({ type: "setSetting", key: "hideCodes", value: v })),
     toggleRow("Remember on this machine", "Store the vault key in the OS keychain; opens without password", st.rememberOnThisMachine, (v) => send({ type: "setSetting", key: "rememberOnThisMachine", value: v })),
     h("p", { class: "hint" }, "Copied codes are cleared from the clipboard automatically (setting: authora.clipboardClearSeconds)."),
@@ -662,9 +844,10 @@ function render() {
   if (!state) return;
   const key = state.screen;
   if (key !== lastScreen || key !== "unlocked") {
+    if (key === "locked" && lastScreen !== "locked") preferPassword = false;
     lastScreen = key;
     app.replaceChildren(
-      key === "setup" ? renderSetup() : key === "locked" ? renderLocked(state.throttledMs, state.remember) : renderUnlockedShell(),
+      key === "setup" ? renderSetup() : key === "locked" ? renderLocked(state.throttledMs, state.remember, state.pin) : renderUnlockedShell(),
     );
     if (key !== "unlocked") { sheet = null; codes = {}; lastCounters = {}; }
   }
@@ -674,6 +857,7 @@ function render() {
     renderList();
     if (sheet?.kind === "menu" || sheet?.kind === "security" || sheet?.kind === "advisor" || sheet?.kind === "backup") renderSheet();
     if (sheet?.kind === "edit" && !state.entries.some((e) => e.id === (sheet as { id: string }).id)) closeSheet();
+    if (state.offerPin && !sheet && !pinOfferAnswered) openSheet({ kind: "pinSetup", mode: state.offerPin });
   }
 }
 
@@ -693,6 +877,7 @@ window.addEventListener("message", (ev: MessageEvent<HostMsg>) => {
     case "done": setError(m.form, ""); closeSheet(); break;
     case "qr": openSheet({ kind: "qr", label: m.label, svg: m.svg }); break;
     case "needPassword": openSheet({ kind: "importPassword", text: m.text, format: m.format }); break;
+    case "pinAgain": openSheet({ kind: "pinSetup", mode: "again" }); break;
   }
 });
 

@@ -256,3 +256,38 @@ details.advanced summary { cursor: pointer; color: var(--muted); font-size: 12px
 .toast.error .icon { color: var(--danger); }
 .toast.out { opacity: 0; transform: translateY(6px); }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------- PIN ---------- */
+.pin-boxes { display: flex; gap: 7px; justify-content: center; margin: 4px 0 14px; }
+.pin-boxes.shake { animation: shake .35s; }
+.pin-box {
+  width: 36px !important; height: 44px; padding: 0 !important; text-align: center; font-size: 20px; font-weight: 600;
+  caret-color: var(--accent); -webkit-text-security: disc;
+}
+.pin-box.filled { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+.pin-box:disabled { opacity: .45; }
+.pin-sub { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0 0 12px; }
+.pin-status { text-align: center; font-size: 12px; color: var(--danger); min-height: 16px; margin-bottom: 6px; }
+.center-check { justify-content: center; }
+.info-icon {
+  position: relative; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%;
+  border: 1.5px solid var(--muted); color: var(--muted); font: italic 700 10.5px Georgia, serif; cursor: help; flex: none;
+}
+.info-icon:hover, .info-icon:focus { border-color: var(--accent); color: var(--accent); outline: none; }
+.info-tip {
+  display: none; position: absolute; top: 22px; left: 50%; transform: translateX(-50%); width: 220px; z-index: 30;
+  background: var(--vscode-editorHoverWidget-background, var(--card)); border: 1px solid var(--vscode-editorHoverWidget-border, var(--border));
+  color: var(--fg); border-radius: 8px; padding: 8px 10px; font: 12px/1.5 var(--vscode-font-family); text-align: left;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+}
+.info-icon:hover .info-tip, .info-icon:focus .info-tip { display: block; }
+.link-btn { display: block; margin: 10px auto 0; background: none; border: 0; color: var(--vscode-textLink-foreground, var(--accent)); font-size: 12px; padding: 4px 10px; border-radius: 8px; }
+.link-btn:hover { text-decoration: underline; }
+.link-btn.muted { color: var(--muted); }
+.link-btn.highlight { background: color-mix(in srgb, var(--accent) 15%, transparent); font-weight: 600; }
+.pin-offer { text-align: center; }
+.pin-offer h3 { margin: 10px 0 6px; font-size: 15px; }
+.pin-offer .btn { margin-top: 6px; }
+.pill { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--border); color: var(--muted); margin-left: 4px; }
+.pill.on { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
+.row-actions { display: flex; gap: 6px; }
