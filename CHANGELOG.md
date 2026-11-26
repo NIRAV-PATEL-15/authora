@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 — unreleased
+## 0.2.0 — 2026-11-26
 - **New: quick-unlock PIN.** Set a 6-digit PIN and unlock Authora by typing it. It unlocks on the 6th digit, with no Enter.
   - It's offered when you create a vault. Existing users see a one-time "New" pop-up, and can set it up any time in ⋯ → Security
     (set up, change, remove).
