@@ -38,5 +38,24 @@ exports.run = async function () {
   await s.unlock("correct horse battery");
   assert.strictEqual(s.store.entries[0].issuer, "GitHub");
   log("lock/unlock works");
+
+  // ---- quick-unlock PIN ----
+  assert.strictEqual(s.viewState().offerPin, "afterCreate", "new vault is offered a PIN");
+  await s.setPin("482913");
+  assert.strictEqual(s.viewState().settings.pinSet, true);
+  assert.strictEqual(s.viewState().offerPin, undefined);
+  await s.lock();
+  assert.ok(s.viewState().pin, "locked screen knows a PIN exists");
+  await s.unlockWithPin("482913");
+  assert.strictEqual(s.viewState().screen, "unlocked");
+  await s.lock();
+  for (let i = 0; i < 3; i++) await assert.rejects(() => s.unlockWithPin("000001"));
+  assert.ok(s.viewState().pin.lockedMs > 0, "3 wrong PINs lock the PIN");
+  await s.unlock("correct horse battery");
+  assert.strictEqual(s.pin.status().failures, 0, "password unlock resets PIN failures");
+  const { hadPin } = await s.changePassword("correct horse battery", "correct horse battery 2");
+  assert.strictEqual(hadPin, true);
+  assert.strictEqual(s.pin.hasPin, false, "password change erases the PIN");
+  log("PIN works");
   log("ALL PASSED");
 };

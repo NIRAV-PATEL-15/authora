@@ -3,6 +3,59 @@ import { Session } from "./host/session";
 import { VaultViewProvider } from "./host/provider";
 import * as A from "./host/actions";
 import { WrongPasswordError } from "./core/envelope";
+import { WrongPinError, pinErrorText } from "./core/pin";
+import { isPinFormat, isWeakPin } from "./shared/pin";
+
+/** PIN entry in the command palette: accepts automatically at 6 digits, no Enter needed. */
+function promptPin(s: Session): Promise<"unlocked" | "usePassword" | "cancel"> {
+  return new Promise((resolve) => {
+    const box = vscode.window.createInputBox();
+    let result: "unlocked" | "usePassword" | "cancel" = "cancel";
+    const finish = (r: typeof result) => { result = r; box.hide(); };
+    box.title = "Authora PIN";
+    box.prompt = "Enter your 6-digit PIN";
+    box.password = true;
+    box.ignoreFocusOut = true;
+    box.buttons = [{ iconPath: new vscode.ThemeIcon("key"), tooltip: "Use master password" }];
+    box.onDidTriggerButton(() => finish("usePassword"));
+    box.onDidChangeValue(async (v) => {
+      if (/\D/.test(v)) { box.validationMessage = "Digits only"; return; }
+      box.validationMessage = undefined;
+      if (!isPinFormat(v) || box.busy) return;
+      box.busy = true;
+      box.enabled = false;
+      try {
+        await s.unlockWithPin(v);
+        finish("unlocked");
+      } catch (e) {
+        if (e instanceof WrongPinError && !e.erased && e.triesBeforeLock > 0) {
+          box.value = "";
+          box.validationMessage = pinErrorText(e);
+        } else {
+          vscode.window.showWarningMessage(`Authora: ${e instanceof WrongPinError ? pinErrorText(e) : (e as Error).message}`);
+          finish("usePassword");
+        }
+      } finally {
+        box.busy = false;
+        box.enabled = true;
+      }
+    });
+    box.onDidHide(() => { box.dispose(); resolve(result); });
+    box.show();
+  });
+}
+
+/** Ask for a new PIN twice. Escape skips; returns true if a PIN was set. */
+async function askNewPin(s: Session, title: string): Promise<boolean> {
+  const validateInput = (v: string) => !isPinFormat(v) ? "Enter 6 digits" : isWeakPin(v) ? "Too easy to guess" : undefined;
+  const pin = await vscode.window.showInputBox({ title, prompt: "New 6-digit PIN (Escape to skip)", password: true, ignoreFocusOut: true, validateInput });
+  if (!pin) return false;
+  const again = await vscode.window.showInputBox({ title, prompt: "Repeat the PIN", password: true, ignoreFocusOut: true });
+  if (again === undefined) return false;
+  if (again !== pin) { vscode.window.showErrorMessage("PINs don't match"); return false; }
+  await s.setPin(pin);
+  return true;
+}
 
 export async function activate(ctx: vscode.ExtensionContext) {
   const s = new Session(ctx);
@@ -32,6 +85,11 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const ensureUnlocked = async (): Promise<boolean> => {
     if (s.store.isUnlocked) return true;
     if (!s.store.exists()) { await focus(); return false; }
+    if (s.pin.hasPin && s.pin.status().lockedMs === 0) {
+      const r = await promptPin(s);
+      if (r === "unlocked") return true;
+      if (r === "cancel") return false;
+    }
     const pw = await vscode.window.showInputBox({ prompt: "Authora master password", password: true, ignoreFocusOut: true });
     if (!pw) return false;
     try { await s.unlock(pw); return true; }
@@ -108,10 +166,9 @@ export async function activate(ctx: vscode.ExtensionContext) {
     if (!newPw) return;
     const again = await vscode.window.showInputBox({ prompt: "Repeat new password", password: true, ignoreFocusOut: true });
     if (again !== newPw) { vscode.window.showErrorMessage("Passwords don't match"); return; }
-    await s.store.changePassword(oldPw, newPw);
-    await s.syncRememberedKey();
-    await s.autoBackup();
+    const { hadPin } = await s.changePassword(oldPw, newPw);
     vscode.window.showInformationMessage("Master password changed");
+    if (hadPin && await askNewPin(s, "Set your PIN again")) vscode.window.showInformationMessage("PIN set");
   });
 
   await s.tryRememberedUnlock();
