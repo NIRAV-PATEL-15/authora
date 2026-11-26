@@ -2,7 +2,7 @@
   "name": "authora",
   "displayName": "Authora — 2FA Authenticator",
   "description": "Password-protected two-factor authenticator (TOTP/HOTP/Steam) in your VS Code sidebar. Encrypted vault, no cloud, no telemetry.",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "publisher": "NiravPatel15",
   "license": "MIT",
   "engines": {
